@@ -65,59 +65,7 @@ start:
 	inc dh
 	mov [bdb_head_count], dh		;head count
 
-	;read FAT12 root directory
-
-	;compute LBA of root directory (reserved + fats * sectors_per_fat)
-	mov ax, [bdb_sectors_per_fat] ;load ax
-	mov bl, [bdb_fat_count] ;load bx
-	xor bh,bh
-	mul bx  ;ax = bdb_sectors_per_fat * bdb_fat_count
-	add ax, [bdb_reserved_sectors] ;ax += reserved
-	push ax ;save to pull into call
-
-	;compute size of FAT12 root directory
-	mov ax, [bdb_sectors_per_fat]
-	shl ax, 5 ;ax *= 32 (directory entries are 32 bytes long)
-	xor dx, dx ;dx = 0
-	div word [bdb_bytes_per_sector]	;number of sectors to read, remainder in dx
-
-	test dx, dx	;if dx (remainder) !=0, add 1
-	jz .after_root_dir
-	inc ax	;sector only partially filled with entries
 	
-.after_root_dir:
-
-	;read root directory
-	mov cl, al					;number of sectors to read (size of root dir)
-	pop ax						;saved from "compute LBA of root directory"
-	mov dl, [ebr_drive_number]	;drive number
-	mov bx, buffer				;after bootloader
-	call disk_read
-
-	;Search loaded root directory for kernel.bin
-	xor bx, bx				;directory entry index counter
-	mov di, buffer			;iterator
-
-.search_kernel:
-	mov si, fname_kernel	;kernel.bin file name in FAT12 format
-	mov cx, 11				;kernel.bin name length
-	push di
-	repe cmpsb				;repe: repeat while equal (zero flag set) OR cx reaches 0. cx decremented each iteration
-							;cmpsb: fancy string compare instruction that compares bytes at si to bytes at di
-	pop di
-	je .found_kernel ;if equal flag is still set, all bytes matched!
-
-	add di, 32 ;go to next directory entry
-	inc bx ;increment index counter
-
-	cmp bx, [bdb_dir_entries_count]
-	jl .search_kernel	;jump if less than; if out of entries continues
-	
-	;print error message: kernel.bin not found!
-	mov si, msg_err_kfile
-	call bios_print
-	call await_and_reboot;
-
 .found_kernel:
 
 	;di should have address to directory entry

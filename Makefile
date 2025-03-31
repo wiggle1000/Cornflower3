@@ -7,7 +7,7 @@ BUILD_DIR=build
 
 floppy: $(OUT_DIR)/Boot_Floppy.img
 
-$(OUT_DIR)/Boot_Floppy.img: $(BUILD_DIR)/stage1.bin $(BUILD_DIR)/kernel.bin
+$(OUT_DIR)/Boot_Floppy.img: $(BUILD_DIR)/stage1.bin $(BUILD_DIR)/stage2.bin $(BUILD_DIR)/kernel.bin
 	echo "Creating Boot Floppy at $(OUT_DIR)/Boot_Floppy.img"
 #	Create unformatted floppy image
 	dd if=/dev/zero of=$(OUT_DIR)/Boot_Floppy.img bs=512 count=2880
@@ -15,8 +15,10 @@ $(OUT_DIR)/Boot_Floppy.img: $(BUILD_DIR)/stage1.bin $(BUILD_DIR)/kernel.bin
 	mkfs.fat -F 12 -R 16 -n "FAT12" $(OUT_DIR)/Boot_Floppy.img
 #	Copy in stage 1 bootloader without truncating
 	dd if=$(BUILD_DIR)/stage1.bin of=$(OUT_DIR)/Boot_Floppy.img conv=notrunc
+#	Copy in stage 2 bootloader without truncating, skipping bootloader
+	dd if=$(BUILD_DIR)/stage2.bin of=$(OUT_DIR)/Boot_Floppy.img conv=notrunc seek=512
 #	Insert stage2.bin
-	mcopy -i $(OUT_DIR)/Boot_Floppy.img $(BUILD_DIR)/stage2.bin "::STAGE2.bin"
+# 	mcopy -i $(OUT_DIR)/Boot_Floppy.img $(BUILD_DIR)/stage2.bin "::STAGE2.bin"
 #	Insert kernel.bin
 	mcopy -i $(OUT_DIR)/Boot_Floppy.img $(BUILD_DIR)/kernel.bin "::kernel.bin"
 
