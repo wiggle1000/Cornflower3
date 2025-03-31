@@ -1,5 +1,5 @@
 out/**.*
 build/**.*
 **/obj/*
+
 *.log
-out/Boot_Floppy.img
