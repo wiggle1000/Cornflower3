@@ -1,0 +1,10 @@
+megs: 128
+romimage: file=/usr/share/bochs/BIOS-bochs-legacy
+vgaromimage: file=/usr/share/bochs/VGABIOS-lgpl-latest
+floppya: 1_44=out/Boot_Floppy.img, status=inserted
+boot: floppy
+plugin_ctrl: speaker=0
+mouse: enabled=1
+display_library: sdl2, options="gui_debug"
+port_e9_hack: enabled=1
+info: action=ignore
