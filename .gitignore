@@ -1,4 +1,5 @@
-out/**
-build/**
+out/**.*
+build/**.*
 **/obj/*
-qemu.log
+*.log
+out/Boot_Floppy.img
