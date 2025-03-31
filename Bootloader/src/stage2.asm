@@ -1,4 +1,4 @@
-org 0x0
+org 0x20000
 bits 16 ;still in real mode
 
 ;CR;LF
@@ -10,6 +10,7 @@ DATA_SEG equ GDT_data - GDT_Start
 start:
 	jmp main
 
+db "MARKER!!"
 
 ;#### UTIL FUNCTIONS ####
 
@@ -86,7 +87,7 @@ main:
 
 	call await_key
 	
-	;call bios_setTextMode ;clear screen
+	call bios_setTextMode ;clear screen
 	jmp enter_protected_mode
 
 halt:
@@ -101,7 +102,7 @@ halt:
 
 
 ;#### STRINGS ####
-msg_hello: 		db "Hello from the Cornflower Kernel Stage 2!", ENDL, 0
+msg_hello: 		db "-------- CORNFLOWER BOOTLOADER S2 --------", ENDL, "Hello from Stage 2!", ENDL, 0
 msg_prot: 		db "About to enter protected mode.", ENDL, 0
 msg_halt: 		db "Halting.", ENDL, 0
 msg_rebooting: 	db "Press any key to reboot...", ENDL, 0
@@ -175,3 +176,8 @@ PROT_print:
 	mov ah, 0x1B ;cyan on blue
 	mov [0xb8000], ax
 	ret
+
+
+; write ENDRSVD! at the end of the last block for debug purposes.
+times (15*512 - 8)-($-$$) db 0 ;$ = current addr, $$ = start of section
+db "ENDRSVD!"

@@ -15,8 +15,8 @@ $(OUT_DIR)/Boot_Floppy.img: $(BUILD_DIR)/stage1.bin $(BUILD_DIR)/stage2.bin $(BU
 	mkfs.fat -F 12 -R 16 -n "FAT12" $(OUT_DIR)/Boot_Floppy.img
 #	Copy in stage 1 bootloader without truncating
 	dd if=$(BUILD_DIR)/stage1.bin of=$(OUT_DIR)/Boot_Floppy.img conv=notrunc
-#	Copy in stage 2 bootloader without truncating, skipping bootloader
-	dd if=$(BUILD_DIR)/stage2.bin of=$(OUT_DIR)/Boot_Floppy.img conv=notrunc seek=512
+#	Copy in stage 2 bootloader without truncating, starting at 512 bytes
+	dd if=$(BUILD_DIR)/stage2.bin of=$(OUT_DIR)/Boot_Floppy.img conv=notrunc bs=512 seek=1
 #	Insert stage2.bin
 # 	mcopy -i $(OUT_DIR)/Boot_Floppy.img $(BUILD_DIR)/stage2.bin "::STAGE2.bin"
 #	Insert kernel.bin

@@ -66,90 +66,41 @@ start:
 	mov [bdb_head_count], dh		;head count
 
 	
-.found_kernel:
+.read_kernel:
 
 	;di should have address to directory entry
 	mov ax, [di + 26] ;first logical cluster (field of directory entry)
 	mov [kernel_cluster], ax
 
-	;read FAT (fila allocation table) into memory
-	mov ax, [bdb_reserved_sectors] 	;LBA address
-	mov bx, buffer					;where to store
-	mov cl, [bdb_sectors_per_fat] 	;sectors to read
+	;Read stage2
+	;  - ax: LBA address
+	;  - cl: number of sectors to read (up to 128)
+	;  - dl: drive number
+	;  - es:bx: mem addr to store read data
+	mov ax, STAGE2_START
+	mov cl, 15	;sectors to read
 	mov dl, [ebr_drive_number]		;drive number
-	call disk_read					;overwrites previous buffer
-
-	;read kernel and process FAT chain
-
-	mov bx, KERNEL_LOAD_SEGMENT
+	
+	mov bx, STAGE2_LOAD_SEGMENT
 	mov es, bx	;set extra segment
-	mov bx, KERNEL_LOAD_OFFSET
+	mov bx, STAGE2_LOAD_OFFSET
 
-.load_kernel_loop:
-
-	;Read next cluster
-	mov ax, [kernel_cluster]
-
-	;TODO: hardcoded, will only work on FDD
-	; first cluster = (kernel_cluster-2) * sectors_per_cluster + start_sector
-	; start_sector = reserved + fats + root_directory_size = 1 + 18 + 134 = 33
-	add ax, 31 + 15 ;add 15 to include all 16 reserved sectors
-
-	;Read block of file
-	;ax (LBA address) is the current cluster value
-	;bx (where to store) is incremented at the end of the loop
-	mov cl, 1					;sectors to read
-	mov dl, [ebr_drive_number]	;drive number
 	call disk_read
 
-	;TODO: will overflow if kernel.bin is over 64KiB
-	;to fix, detect overflow and increment segment
-	add bx, [bdb_bytes_per_sector]
-
-	;compute location of next cluster
-	;FAT12 is evil because the cluster length is 12 BITS.
-	;so we need to do some evil modulo and shifting because
-	;it's not byte aligned...
-	mov ax, [kernel_cluster]
-
-	mov cx, 3
-	mul cx	;ax *= cx (3)
-
-	mov cx, 2
-	div cx	;ax = ax/cx, dx = remainder of ax/cx
-
-	mov si, buffer ;set si to start of buffer. (buffer holds File Allocation Table)
-	add si, ax ;offset by ax
-	mov ax, [ds:si]	;ax = FAT table entry at index si
-
-	or dx, dx
-	jz .even
-
-.odd:
-	shr ax, 4 ;shift right 4
-	jmp .next_cluster_after
-
-.even:
-	and ax, 0x0FFF ;mask
-
-.next_cluster_after:
-	cmp ax, 0x0FF8 ;ff8 or more is end of chain (end of FATs for this file)
-	jae .read_finish ;jump if above or equal
-
-	mov [kernel_cluster], ax ;set current cluster to next cluster and read more
-	jmp .load_kernel_loop
-
 .read_finish:
+
+	mov si, msg_done
+	call bios_print
 
 	;FAR JUMP TO KERNEL!
 	mov dl, [ebr_drive_number] ;put boot device in dl, like bios does
 
 	;setup segment registers
-	mov ax, KERNEL_LOAD_SEGMENT
+	mov ax, STAGE2_LOAD_SEGMENT
 	mov ds, ax
 	mov es, ax
 
-	jmp KERNEL_LOAD_SEGMENT:KERNEL_LOAD_OFFSET
+	jmp STAGE2_LOAD_SEGMENT:STAGE2_LOAD_OFFSET
 
 
 	call await_and_reboot
@@ -192,8 +143,8 @@ bios_print:
 	ret
 
 await_and_reboot:
-	;mov si, msg_rebooting
-	;call bios_print
+	mov si, msg_rebooting
+	call bios_print
 	mov ah, 0
 	int 16h		;await keypress
 	ret
@@ -305,12 +256,13 @@ disk_reset:
 
 ;#### STRINGS ####
 msg_halt: 		db "Halt.", ENDL, 0
+msg_done: 		db "Stage2 Loaded! Passing control.", ENDL, 0
 msg_err_read: 	db "Can't read boot drive!", ENDL, 0
-msg_err_kfile: 	db "STAGE2.BIN missing.", ENDL, 0
-fname_kernel: 	db "STAGE2  BIN"
+msg_rebooting: 	db "Press any key...", ENDL, 0
 
-KERNEL_LOAD_SEGMENT	equ 0x2000
-KERNEL_LOAD_OFFSET	equ 0
+STAGE2_LOAD_SEGMENT	equ 0x2000
+STAGE2_LOAD_OFFSET	equ 0
+STAGE2_START	equ 0x1 ;in BLOCKS!!
 
 ;#### VARS ####
 kernel_cluster: dw 0
@@ -318,5 +270,3 @@ kernel_cluster: dw 0
 ;last two bytes of first sector must be 0xAA55 to be detected as bootable
 times 510-($-$$) db 0 ;$ = current addr, $$ = start of section
 dw 0xAA55 ;2 bytes
-
-buffer:
