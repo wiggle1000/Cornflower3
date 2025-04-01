@@ -5,6 +5,7 @@ bits 16 ;starts in real mode
 %define ENDL 0x0D, 0x0A
 
 ;#### FAT12 HEADER ####
+FAT_HEADER:
 jmp short start
 nop
 bdb_oem:					db "MSWIN4.1"	;8 bytes
@@ -94,6 +95,7 @@ start:
 
 	;FAR JUMP TO KERNEL!
 	mov dl, [ebr_drive_number] ;put boot device in dl, like bios does
+	mov bx, FAT_HEADER ;put address of fat header in bx
 
 	;setup segment registers
 	mov ax, STAGE2_LOAD_SEGMENT
