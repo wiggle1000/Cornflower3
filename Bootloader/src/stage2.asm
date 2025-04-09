@@ -1,14 +1,15 @@
-org 0x20000
+org 0x10000
 bits 16 ;still in real mode
 
 ;CR;LF
 %define ENDL 0x0D, 0x0A
 
-%define KERNEL_BUFF_SEGMENT 	0x7000
+%define KERNEL_BUFF_SEGMENT 	0x5000
 %define KERNEL_BUFF_OFFSET 		0
 
 ;free space after 1mb
-%define KERNEL_TARGET_SEGMENT 	0x10000
+%define KERNEL_TARGET_SEGMENT 	0x10000 - 1
+%define KERNEL_TARGET_OFFSET 	0x1
 
 
 CODE_SEG equ GDT_code - GDT_Start
@@ -94,7 +95,7 @@ enter_protected_mode:
 	or eax, 1
 	mov cr0, eax
 	;jump to protected mode!
-	jmp CODE_SEG:prot_entry
+	jmp prot_entry
 
 ;Print string
 ; Params:
@@ -120,6 +121,64 @@ bios_print:
 	pop bx
 	pop ax
 	pop si
+	ret
+
+;Print number
+; Params:
+;  - dx = value
+bios_print_dx:
+	pusha
+	;write [
+	mov al, '['
+	mov ah, 0x00E
+	mov bh, 0
+	int 0x10
+	;write 0
+	mov al, '0'
+	mov ah, 0x00E
+	mov bh, 0
+	int 0x10
+	;write x
+	mov al, 'x'
+	mov ah, 0x00E
+	mov bh, 0
+	int 0x10
+
+	mov cx, 4
+	.loop:
+		rol dx, 4
+		mov bx, dx
+		and bx, 0x000F
+
+		cmp cx, 0
+		jle .post
+
+		cmp bl, 0xA
+		jge .letter
+		.number:
+			mov al, bl
+			add al, 32+16
+			jmp .prt
+		.letter:
+			mov al, bl
+			add al, 32+23
+		.prt:
+
+		;bios call to write char
+		mov ah, 0x00E
+		mov bh, 0
+		int 0x10
+
+		dec cx
+		jmp .loop
+	.post:
+		
+	;write ]
+	mov al, ']'
+	mov ah, 0x00E
+	mov bh, 0
+	int 0x10
+	popa
 	ret
 
 bios_setTextMode:
@@ -197,18 +256,22 @@ disk_read:
 
 	mov ah, 02h
 
-	mov di, 3		;retry count
+	mov di, 5		;retry count
 
 	.retry:
 		pusha			;bios can change anything here
 		stc				;set carry flag in case bios doesn't
 		int 13h			;if read succeeds, carry flag gets cleared
 		jnc .done
-
+		
 		;fail
 		popa
-		call disk_reset
 
+		mov si, msg_read_retry
+		call bios_print
+		
+		call disk_reset
+		
 		dec di
 		test di, di
 		jnz .retry
@@ -239,7 +302,7 @@ disk_reset:
 	jnc .ok
 	.err:
 		;print message
-		mov si, msg_err_read
+		mov si, msg_err_reset
 		call bios_print
 		;await key and reboot
 		jmp await_and_reboot
@@ -257,7 +320,7 @@ main:
 	mov si, msg_hello
 	call bios_print
 
-	call get_FAT_info ;clear screen
+	call get_FAT_info ;unimplemented
 
 	;mov si, msg_prot
 	;call bios_print
@@ -280,6 +343,7 @@ main:
 	mov si, msg_unreal_ok
 	call bios_print
 
+
 	;read from floppy
 	;bios sets dl to drive number
 	mov [ebr_drive_number], dl
@@ -298,6 +362,16 @@ main:
 	inc dh
 	mov [bdb_head_count], dh		;head count
 
+	;print drive number
+	mov si, msg_drivenum
+	call bios_print
+	push dx
+		mov dx, [ebr_drive_number]
+		call bios_print_dx
+	pop dx
+	mov si, msg_nl
+	call bios_print
+	
 	;read FAT12 root directory
 	
 
@@ -362,24 +436,65 @@ main:
 	call await_and_reboot;
 
 .found_kernel:
-
+	
 	push si
-	;print kernel found message
-	mov si, msg_bin_load
-	call bios_print
-	pop si
+		;print kernel found message
+		mov si, msg_bin_load
+		call bios_print
 
+		;print kernel.bin cluster index
+		mov si, msg_firstclust
+		call bios_print
+		push dx
+			mov dx, [di + 26]
+			call bios_print_dx
+		pop dx
+		mov si, msg_nl
+		call bios_print
+
+		;print FAT table addr
+		mov si, msg_fataddr
+		call bios_print
+		push dx
+			mov dx, [bdb_reserved_sectors]
+			call bios_print_dx
+		pop dx
+		mov si, msg_nl
+		call bios_print
+	pop si
+	
+	
 	;di should have address to directory entry
 	mov ax, [di + 26] ;first logical cluster (field of directory entry)
 	mov [kernel_cluster], ax
 
-	;read FAT (fila allocation table) into memory
-	mov ax, [bdb_reserved_sectors] 	;LBA address
-	mov bx, buffer					;where to store
-	mov cl, [bdb_sectors_per_fat] 	;sectors to read
-	mov dl, [ebr_drive_number]		;drive number
-	call disk_read					;overwrites previous buffer
-
+	;read one sector at a time to avoid cylinder boundaries...
+	.read_fat_loop:
+		;read FAT (file allocation table) into memory
+		mov ax, [bdb_reserved_sectors] 	;LBA address
+		;where to store (buffer + sectors_read*512)
+		mov bx, [FAT_sectors_read]		
+		shl bx, 9						;multiply by 512
+		add bx, buffer
+		mov cl, 1 						;sectors to read
+		mov dl, [ebr_drive_number]		;drive number
+		call disk_read					;overwrites previous buffer
+		push si
+			;print block load message
+			mov si, msg_dbg
+			call bios_print
+		pop si
+		push ax
+			mov ax, [bdb_sectors_per_fat]
+			inc word [FAT_sectors_read]
+			cmp word [FAT_sectors_read], ax
+		pop ax
+		jl .read_fat_loop
+	push si
+		;print block load message
+		mov si, msg_dbg
+		call bios_print
+	pop si
 
 	;read kernel and process FAT chain
 
@@ -399,18 +514,28 @@ main:
 
 	;Read block of file
 	;ax (LBA address) is the current cluster value
-	;bx (where to store) is incremented at the end of the loop
+	;bx (where to store)
 	mov cl, 1					;sectors to read
 	mov dl, [ebr_drive_number]	;drive number
 	call disk_read
 
 	
 	push si
-	;print block load message
-	mov si, msg_block_load
-	call bios_print
+		;print block load message
+		mov si, msg_block_load
+		call bios_print
+		
+		;print kernel addr
+		mov si, msg_readaddr
+		call bios_print
+		push dx
+			mov dx, ax ;address we read
+			call bios_print_dx
+		pop dx
+		mov si, msg_nl
+		call bios_print
 	pop si
-	
+
 	;move block to higher mem
 	push ds
 	push es
@@ -418,12 +543,18 @@ main:
 	push cx
 	push di
 	push esi
-
+	push gs
+		push eax
+			mov eax, ds
+			mov gs, eax ;ref to real ds so we can print messages
+		pop eax
+		
 		mov cx, 512 ;count to copy
 		;move es:di to kernel target location
 		mov eax, KERNEL_TARGET_SEGMENT
 		mov es, eax
-		mov edi, [kernel_byte_count]
+		mov edi, KERNEL_TARGET_OFFSET
+		add edi, [kernel_byte_count]
 		;move ds:si to block to copy
 		mov ax, [KERNEL_BUFF_SEGMENT]
 		mov ds, ax
@@ -432,6 +563,33 @@ main:
 		;do move from ds:si to es:di
 		rep movsb
 
+		
+		push ds
+		push si
+			push gs
+			pop ds ;move gs to ds through stack
+			;print first byte
+			mov si, msg_debugnum
+			call bios_print
+			push dx
+				mov dx, [ds:esi] ;address we wrote
+				call bios_print_dx
+			pop dx
+
+			mov si, msg_dbgarrow
+			call bios_print
+			
+			push dx
+				mov dx, [es:di] ;address we wrote
+				call bios_print_dx
+			pop dx
+
+			mov si, msg_nl
+			call bios_print
+		pop si
+		pop ds
+
+	pop gs
 	pop esi
 	pop di
 	pop cx
@@ -439,11 +597,21 @@ main:
 	pop es
 	pop ds
 
-	push si
-	;print block load message
-	mov si, msg_block_load2
-	call bios_print
-	pop si
+;	push si
+;		;print block load message
+;		mov si, msg_block_load2
+;		call bios_print
+;	
+;		;print kernel addr
+;		mov si, msg_writeaddr
+;		call bios_print
+;		push dx
+;			mov dx, KERNEL_BUFF_SEGMENT ;address we wrote
+;			call bios_print_dx
+;		pop dx
+;		mov si, msg_nl
+;		call bios_print
+;	pop si
 
 	;compute location of next cluster
 	;FAT12 is evil because the cluster length is 12 BITS.
@@ -488,28 +656,19 @@ main:
 .read_finish:
 
 	push si
-	;print block load message
+	;print done message
 	mov si, msg_bin_done
 	call bios_print
 	pop si
 
 
 	push si
-	;print block load message
+	;print "about to enter protected mode" message
 	mov si, msg_prot
 	call bios_print
 	pop si
 
-	;FAR JUMP TO KERNEL!
-	mov dl, [ebr_drive_number] ;put boot device in dl, like bios does
-
-	;setup segment registers
-	mov ax, KERNEL_BUFF_SEGMENT
-	mov ds, ax
-	mov es, ax
-
-	jmp KERNEL_BUFF_SEGMENT:KERNEL_BUFF_OFFSET
-
+	jmp enter_protected_mode
 
 	call await_and_reboot
 halt:
@@ -528,6 +687,8 @@ msg_hello: 		db "-------- CORNFLOWER BOOTLOADER S2 --------", ENDL, "Hello from 
 msg_unreal: 	db "About to enter unreal mode.", ENDL, 0
 msg_unreal_ok: 	db "Entered Unreal mode successfully!", ENDL, "Now searching for KERNEL.BIN...", ENDL, 0
 msg_err_read: 	db "Failed to read from disk.", ENDL, 0
+msg_err_reset: 	db "Failed to reset disk during retry process.", ENDL, 0
+msg_read_retry:	db "Retrying...", ENDL, 0
 msg_err_kfile: 	db "KERNEL.BIN not found!", ENDL, 0
 msg_bin_load: 	db "KERNEL.BIN located! Beginning block transfer:", ENDL, 0
 msg_block_load:	db "[", 0x01, 0
@@ -536,15 +697,26 @@ msg_bin_done:	db "...Done! Wonderful work.", ENDL, 0
 msg_prot: 		db "About to enter protected mode and pass to Kernel!", ENDL, 0
 
 msg_dbg: 		db "debug!", ENDL, 0
+msg_dbgarrow: 	db " -> ", 0
 msg_halt: 		db "Halting.", ENDL, 0
 msg_continue: 	db "Press any key to continue...", ENDL, 0
 msg_rebooting: 	db "Press any key to reboot...", ENDL, 0
+
+msg_drivenum: 	db "[Info] Drive Number: ", 0
+msg_firstclust:	db "[Info] First Cluster of KERNEL.BIN: ", 0
+msg_fataddr:	db "[Info] FAT Address: ", 0
+msg_firstblk:	db "[Info] First block address in KERNEL.BIN: ", 0
+msg_readaddr: 	db "[Debug] Reading Address: ", 0
+msg_writeaddr: 	db "[Debug] Writing Address: ", 0
+msg_debugnum: 	db "[Debug] Value: ", 0
+msg_nl: 		db ENDL, 0
 
 fname_kernel: 	db "KERNEL  BIN"
 
 kernel_cluster: dw 0
 kernel_byte_count: dw 0
 fat_header_addr: dw 0
+FAT_sectors_read: dw 0
 
 ;#### GDT ####
 ;set up code and data segments to max size, spanning full memory
@@ -603,8 +775,22 @@ prot_entry:
 		mov ebp, 0x9000
 		mov esp, ebp
 		
+		mov al, 'A'
+		mov ah, 0x1B ;cyan on blue
+		mov [0xb8000], ax
+
 		call PROT_print
 		jmp $
+
+		;FAR JUMP TO KERNEL!
+		mov dl, [ebr_drive_number] ;put boot device in dl, like bios does
+
+		;setup segment registers
+		mov ax, KERNEL_BUFF_SEGMENT
+		mov ds, ax
+		mov es, ax
+
+		jmp KERNEL_BUFF_SEGMENT:KERNEL_BUFF_OFFSET
 	
 [bits 32]
 PROT_print:

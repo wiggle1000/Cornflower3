@@ -262,7 +262,7 @@ msg_done: 		db "Stage2 Loaded! Passing control.", ENDL, 0
 msg_err_read: 	db "Can't read boot drive!", ENDL, 0
 msg_rebooting: 	db "Press any key...", ENDL, 0
 
-STAGE2_LOAD_SEGMENT	equ 0x2000
+STAGE2_LOAD_SEGMENT	equ 0x1000
 STAGE2_LOAD_OFFSET	equ 0
 STAGE2_START	equ 0x1 ;in BLOCKS!!
 

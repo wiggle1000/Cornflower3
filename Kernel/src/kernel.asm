@@ -1,4 +1,4 @@
-org 0x
+org 0x0
 bits 32
 
 db "KERNEL.BIN PLACEHOLDER CONTENTS",0
