@@ -1,5 +1,6 @@
 bits 32
 global kern_entry
+extern main
 
 section .bss
 align 16
@@ -14,7 +15,7 @@ kern_entry:
 
 		call PROT_print ;print pre-kernel debug message
 		
-		call extern main ; pass to high level kernel
+		call main ; pass to high level kernel
 
 		call PROT_print2 ;print post-kernel debug message
 
