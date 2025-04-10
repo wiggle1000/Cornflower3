@@ -9,6 +9,7 @@ FILESYSTEM_DIR=Filesystem
 floppy: $(OUT_DIR)/Boot_Floppy.img
 
 $(OUT_DIR)/Boot_Floppy.img: $(BUILD_DIR)/kernel.elf
+	# vvvvvvvvvvvvvvvv FLOPPY vvvvvvvvvvvvvvvv
 	echo "Creating Boot Floppy at $(OUT_DIR)/Boot_Floppy.img"
 	rm -rf $(BUILD_DIR)/fsRoot
 	rm -rf $(OUT_DIR)/Boot_Floppy.img
@@ -29,6 +30,7 @@ $(OUT_DIR)/Boot_Floppy.img: $(BUILD_DIR)/kernel.elf
 		mcopy -i $(OUT_DIR)/Boot_Floppy.img "$$file" ::/ -bs ;\
 	done
 	mlabel -i $(OUT_DIR)/Boot_Floppy.img -N 12345678 ::Cornflower
+	# ^^^^^^^^^^^^^^^^END FLOPPY^^^^^^^^^^^^^^^^
 
 
 #### KERNEL ####

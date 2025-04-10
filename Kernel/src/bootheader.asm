@@ -1,3 +1,4 @@
+bits 32
 section .multiboot2_header
 multiboot2_start:
 	dd 0xE85250D6 	;magic number
