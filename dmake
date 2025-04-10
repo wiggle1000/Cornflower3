@@ -1,0 +1,7 @@
+#!/bin/bash
+sudo docker image inspect cornflowerbuild:latest > /dev/null 2>&1
+if [ $? -ne 0 ]; then
+	echo "Docker container not found! Building."
+	sudo docker build -t cornflowerbuild:latest .
+fi
+sudo docker run --mount type=bind,source=.,target=/usr/src/Cornflower -it cornflowerbuild:latest make "$@"

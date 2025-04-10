@@ -1,5 +1,6 @@
 OUT_DIR=out
 BUILD_DIR=build
+FILESYSTEM_DIR=Filesystem
 
 .PHONY: all floppy bootloader kernel clean always run debug
 
@@ -7,43 +8,41 @@ BUILD_DIR=build
 
 floppy: $(OUT_DIR)/Boot_Floppy.img
 
-$(OUT_DIR)/Boot_Floppy.img: $(BUILD_DIR)/stage1.bin $(BUILD_DIR)/stage2.bin $(BUILD_DIR)/kernel.bin
+$(OUT_DIR)/Boot_Floppy.img: $(BUILD_DIR)/kernel.elf
 	echo "Creating Boot Floppy at $(OUT_DIR)/Boot_Floppy.img"
-#	Create unformatted floppy image
-	dd if=/dev/zero of=$(OUT_DIR)/Boot_Floppy.img bs=512 count=2880
-#	Format to FAT12 with 16 reserved sectors
-	mkfs.fat -F 12 -R 16 -n "FAT12" $(OUT_DIR)/Boot_Floppy.img
-#	Copy in stage 1 bootloader without truncating
-	dd if=$(BUILD_DIR)/stage1.bin of=$(OUT_DIR)/Boot_Floppy.img conv=notrunc
-#	Copy in stage 2 bootloader without truncating, starting at 512 bytes
-	dd if=$(BUILD_DIR)/stage2.bin of=$(OUT_DIR)/Boot_Floppy.img conv=notrunc bs=512 seek=1
-#	Insert stage2.bin
-# 	mcopy -i $(OUT_DIR)/Boot_Floppy.img $(BUILD_DIR)/stage2.bin "::STAGE2.bin"
-#	Insert kernel.bin
-	mcopy -i $(OUT_DIR)/Boot_Floppy.img $(BUILD_DIR)/kernel.bin "::kernel.bin"
+	rm -rf $(BUILD_DIR)/fsRoot
+	rm -rf $(OUT_DIR)/Boot_Floppy.img
+	cp $(FILESYSTEM_DIR) $(BUILD_DIR)/fsRoot -r
+	cp $(BUILD_DIR)/kernel.elf $(BUILD_DIR)/fsRoot/system
+#create grub image that is annoyingly not properly formatted
+	grub-mkimage -p /system -C auto -o $(BUILD_DIR)/grub_boot.img -O i386-pc part_msdos fat configfile multiboot2 normal biosdisk
+#create floppy image full of 0s
+	dd if=/dev/zero of="$(OUT_DIR)/Boot_Floppy.img" bs=512 count=2880
+#insert grub boot sector
+	dd if=/usr/lib/grub/i386-pc/boot.img of="$(OUT_DIR)/Boot_Floppy.img" conv=notrunc
+#insert generated grub image
+	dd if="$(BUILD_DIR)/grub_boot.img" of="$(OUT_DIR)/Boot_Floppy.img" conv=notrunc seek=1
+#format image
+	mformat -i "$(OUT_DIR)/Boot_Floppy.img" -kR 298 ::
+#insert filesystem
+	for file in $(BUILD_DIR)/fsRoot/*; do \
+		mcopy -i $(OUT_DIR)/Boot_Floppy.img "$$file" ::/ -bs ;\
+	done
+	mlabel -i $(OUT_DIR)/Boot_Floppy.img -N 12345678 ::Cornflower
 
-
-#### BOOTLOADER ####
-
-bootloader: $(BUILD_DIR)/stage1.bin $(BUILD_DIR)/stage2.bin
-
-$(BUILD_DIR)/stage1.bin $(BUILD_DIR)/stage2.bin: always
-	$(MAKE) -C ./Bootloader -f bootloader.mk
-	cp ./Bootloader/obj/stage1.bin $(BUILD_DIR)
-	cp ./Bootloader/obj/stage2.bin $(BUILD_DIR)
 
 #### KERNEL ####
 
-kernel: $(OBJ_DIR)/kernel.bin
+kernel: $(BUILD_DIR)/kernel.elf
 
-$(BUILD_DIR)/kernel.bin: always
+$(BUILD_DIR)/kernel.elf: always
 	$(MAKE) -C ./Kernel -f kernel.mk
-	cp ./Kernel/obj/kernel.bin $(BUILD_DIR)
+	cp ./Kernel/obj/kernel.elf $(BUILD_DIR)
 
 #### RUN ####
 
 run: $(OUT_DIR)/Boot_Floppy.img
-	qemu-system-i386 -device adlib -debugcon stdio -drive file=$(OUT_DIR)/Boot_Floppy.img,index=0,if=floppy,format=raw -D ./qemu.log -d cpu_reset
+	run_qemu
 
 #### DEBUG ####
 
@@ -52,7 +51,6 @@ debug: $(OUT_DIR)/Boot_Floppy.img
 
 #### CLEAN ####
 clean:
-	$(MAKE) -C ./Bootloader -f bootloader.mk clean
 	$(MAKE) -C ./Kernel -f kernel.mk clean
 	rm -rf $(OUT_DIR)
 	rm -rf $(BUILD_DIR)

@@ -1,9 +1,9 @@
-org 0x0
+global kern_entry
+
+section .text
 bits 32
 
-db "KERNEL.BIN PLACEHOLDER CONTENTS",0
-
-start:
+kern_entry:
 	jmp k_main
 
 PROT_print:
@@ -17,6 +17,4 @@ k_main:
 	call PROT_print
 	jmp $
 
-; write ENDKERN! at the end of the last block for debug purposes
-times (16*512 - 8)-($-$$) db 0 ;$ = current addr, $$ = start of section
 db "ENDKERN!"

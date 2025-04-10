@@ -5,19 +5,18 @@ SRC_DIR?=src/kernel
 
 ASM?=nasm
 GCC?=i386-elf-gcc
-GPPPARAMS?=
-ASMPARAMS?=
-LDPARAMS?=
+GPPPARAMS?=-ffreestanding -O2 -nostdlib -Iinclude -Wall -Wextra
+ASMPARAMS?=-f elf
+LDPARAMS?=-ffreestanding -O2 -nostdlib -Iinclude
 
-objects = 	OBJ_DIR/boot.o \
-			obj/helpers/vgaPrint.o \
-			obj/kernel.o 
+objects = 	$(OBJ_DIR)/bootheader.o \
+			$(OBJ_DIR)/kernel.o 
 
 .PHONY: all kernel clean
 
 all: kernel
 
-kernel: $(OBJ_DIR)/kernel.bin
+kernel: $(OBJ_DIR)/kernel.elf
 
 $(OBJ_DIR)/%.o: src/%.cpp
 	mkdir -p $(@D)
@@ -27,16 +26,12 @@ $(OBJ_DIR)/%.o: src/%.c
 	mkdir -p $(@D)
 	$(GCC) $(GPPPARAMS) -o $@ -c $<
 
-$(OBJ_DIR)/%.o: src/%.s
+$(OBJ_DIR)/%.o: src/%.asm
 	mkdir -p $(@D)
 	$(ASM) $(ASMPARAMS) -o $@ $<
 
-#kernel.bin: linker.ld $(objects)
-#	$(GPP) $(LDPARAMS) -T $< -o $@ $(objects)
-
-$(OBJ_DIR)/%.bin: $(SRC_DIR)/%.asm
-	mkdir -p $(@D)
-	$(ASM) -f bin -o $@ $<
+$(OBJ_DIR)/kernel.elf: linker.ld $(objects)
+	$(GCC) $(LDPARAMS) -T $< -o $@ $(objects)
 
 clean:
 	rm -rf $(OBJ_DIR)
