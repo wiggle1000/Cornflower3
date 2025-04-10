@@ -1,4 +1,5 @@
 bits 32
+global kern_entry
 
 section .bss
 align 16
@@ -8,23 +9,20 @@ stack_top:
 
 
 section .text
-global kern_entry
 kern_entry:
-	; move stack to stack top (stack expands downwards)
-	mov esp, stack_top
+		mov esp, stack_top ; set stack pointer to new stack
 
-	
-		call PROT_print
+		call PROT_print ;print pre-kernel debug message
 		
-		call extern _main ; pass to high level kernel
+		call extern main ; pass to high level kernel
 
-		; if we get here the OS is over
-		call PROT_print2
+		call PROT_print2 ;print post-kernel debug message
+
+
 		cli ; disable interrupts
-	.1:	
+	.halt:	;halt
 		hlt
-		jmp short .1
-	ret
+		jmp short .halt
 
 PROT_print:
 	push ax
