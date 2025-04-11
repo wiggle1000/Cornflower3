@@ -46,6 +46,21 @@ class VGAPrint
 		static void WriteChar(char c);
 
 		static void Write(const char* str);
+		static void WriteUInt16(uint16_t i, bool hex = false);
+		static void WriteInt16(int16_t i, bool hex = false);
+		static void WriteUInt32(uint32_t i, bool hex = false);
+		static void WriteInt32(int32_t i, bool hex = false);
+
+		/// @brief Writes a Byte to the screen
+		/// @param b Byte to be written
+		/// @param hex If true, writes the number in 0x00 format, otherwise uses decimal representation
+		static void WriteByte(uint8_t i, bool hex = false);
+
+		/// @brief Writes a single hexidecimal digit to the screen
+		/// @param index masked with 0x000F (range 0-16)
+		static void WriteHexChar(uint8_t index);
+
+		static void Printf(const char* str, ...);
 
 		static void SetTextColor(const vga_color color);
 		static void SetBGColor(const vga_color color);

@@ -61,11 +61,137 @@ void VGAPrint::WriteChar(char c)
 	}
 }
 
+void VGAPrint::WriteHexChar(uint8_t index)
+{
+	if((index & 0x0F) > 9)
+	{
+		VGAPrint::WriteChar('A' + (index & 0x0F) - 10);
+	}
+	else
+	{
+		VGAPrint::WriteChar('0' + (index & 0x0F));
+	}
+}
+
 void VGAPrint::Write(const char* str)
 {
 	for(int i = 0; str[i] != '\0'; i++)
 	{
 		WriteChar(str[i]);
+	}
+}
+
+void VGAPrint::WriteByte(uint8_t b, bool hex)
+{
+	if(hex)
+	{
+		WriteChar('0');
+		WriteChar('x');
+		for(int i = 1; i >= 0; i--)
+		{
+			WriteHexChar(b>>(i*4));
+		}
+	}
+	else
+	{
+		if(b >= 100)
+		{
+			WriteChar('0' + ((b%1000)/100));
+		}
+		if(b >= 10)
+		{
+			WriteChar('0' + ((b%100)/10));
+		}
+		WriteChar('0' + (b%10));
+	}
+}
+void VGAPrint::WriteUInt32(uint32_t b, bool hex)
+{
+	if(hex)
+	{
+		WriteChar('0');
+		WriteChar('x');
+		for(int i = 7; i >= 0; i--)
+		{
+			WriteHexChar(b>>(i*4));
+		}
+	}
+	else
+	{
+		//max 10 digits
+		for(unsigned int digit = 10; digit > 0; digit--)
+		{
+			if(b >= (10^(digit-1)) )
+			{
+				WriteChar('0' + ((b%(10^(digit)))/(10^(digit-1))));
+			}
+		}
+		WriteChar('0' + (b%10));
+	}
+}
+void VGAPrint::WriteInt32(int32_t b, bool hex)
+{
+	if(hex)
+	{
+		WriteChar('0');
+		WriteChar('x');
+		for(int i = 7; i >= 0; i--)
+		{
+			WriteHexChar(b>>(i*4));
+		}
+	}
+	else
+	{
+		if(b < 0)
+		{
+			WriteChar('-');
+			//max 10 digits
+			for(int digit = 10; digit > 0; digit--)
+			{
+				if((-b) >= (10^(digit-1)) )
+				{
+					WriteChar('0' + (((-b)%(10^(digit)))/(10^(digit-1))));
+				}
+			}
+			WriteChar('0' + ((-b)%10));
+		}
+		else
+		{
+			//max 10 digits
+			for(int digit = 10; digit > 0; digit--)
+			{
+				if(b >= (10^(digit-1)) )
+				{
+					WriteChar('0' + ((b%(10^(digit)))/(10^(digit-1))));
+				}
+			}
+			WriteChar('0' + (b%10));
+		}
+	}
+}
+
+void VGAPrint::WriteUInt16(uint16_t b, bool hex)
+{
+	if(hex)
+	{
+		WriteChar('0');
+		WriteChar('x');
+		for(int i = 3; i >= 0; i--)
+		{
+			WriteHexChar((b>>(i*4)) & 0x0F);
+		}
+	}
+	else
+	{
+		//max 5 digits
+		for(unsigned int digit = 5; digit > 0; digit--)
+		{
+			if(b >= (10^(digit-1)) )
+			{
+				WriteChar('0' + ((b%(10^(digit)))/(10^(digit-1))));
+			}
+		}
+		WriteChar('0' + (b%10));
 	}
 }
 

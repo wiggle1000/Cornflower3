@@ -12,6 +12,10 @@ LDPARAMS?=-ffreestanding -O2 -nostdlib -I$(SRC_DIR)
 objects = 	$(OBJ_DIR)/bootheader.o \
 			$(OBJ_DIR)/entry.o \
 			$(OBJ_DIR)/kernel.o \
+			$(OBJ_DIR)/gdt.o \
+			$(OBJ_DIR)/gdt_helper.o \
+			$(OBJ_DIR)/idt.o \
+			$(OBJ_DIR)/isr_stubs.o \
 			$(OBJ_DIR)/helpers/vgaPrint.o
 
 .PHONY: all kernel clean
