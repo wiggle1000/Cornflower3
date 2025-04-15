@@ -3,7 +3,7 @@
 
 Keyboard::Keyboard()
 {
-	
+
 }
 Keyboard::~Keyboard()
 {
@@ -13,16 +13,22 @@ Keyboard::~Keyboard()
 void Keyboard::MakeKey(uint8_t index)
 {
 	if(index >= 128) return;
+	keyStates[index] = true;
+	AppendToBuffer(index);
 }
+
 void Keyboard::BreakKey(uint8_t index)
 {
 	if(index >= 128) return;
+	keyStates[index] = false;
 }
 
 bool Keyboard::IsKeyDown(uint8_t index)
 {
 	if(index >= 128) return false;
+	return keyStates[index];
 }
+
 bool Keyboard::IsKeyUp(uint8_t index)
 {
 	return !IsKeyUp(index);
@@ -33,7 +39,7 @@ bool Keyboard::IsBufferEmpty()
 	return typedBuffer[0] == 0;
 }
 
-char Keyboard::ReadBuffer()
+uint8_t Keyboard::ReadBuffer()
 {
 	if(typedBuffer[0] == 0)
 	{	
@@ -41,12 +47,11 @@ char Keyboard::ReadBuffer()
 		return 0;
 	}
 
-	char c = typedBuffer[0];
+	uint8_t c = typedBuffer[0];
 	
 	//slide buffer contents left
 	for(int i = 0; i < BufferSize - 1; i++)
 	{
-		if(typedBuffer[i] == 0) continue;
 		typedBuffer[i] = typedBuffer[i+1];
 		return true;
 	}
@@ -54,8 +59,10 @@ char Keyboard::ReadBuffer()
 
 	return c;
 }
-bool Keyboard::AppendToBuffer(char toAppend)
+
+bool Keyboard::AppendToBuffer(uint8_t toAppend)
 {
+	if(toAppend == 0) return true; //attempting to append 0 never changes the buffer
 	for(int i = 0; i < BufferSize; i++)
 	{
 		if(typedBuffer[i] == 0) continue;
