@@ -1,0 +1,3 @@
+#!/bin/bash
+./dmake floppy
+qemu-system-i386 -device adlib -debugcon stdio -drive file=out/Boot_Floppy.img,index=0,if=floppy,format=raw -D ./qemu.log -d cpu_reset -s -S

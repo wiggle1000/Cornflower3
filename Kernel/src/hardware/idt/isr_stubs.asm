@@ -1,14 +1,30 @@
 extern exception_handler
+extern PIC_interrupt_handler
 
 %macro isr_define 1
 isr_stub_%+%1:
+	push dword [esp-4]
+	push word %1
 	call exception_handler
+	add esp, 2 + 4
 	iret
 %endmacro
 
 %macro isr_define_err 1
 isr_stub_%+%1:
+	push dword [esp-4]
+	push word %1
 	call exception_handler
+	add esp, 2 + 4
+	iret
+%endmacro
+
+%macro isr_define_pic 1
+isr_stub_%+%1:
+	push dword [esp-4]
+	push word %1
+	call PIC_interrupt_handler
+	add esp, 2 + 4
 	iret
 %endmacro
 
@@ -45,10 +61,28 @@ isr_define		29
 isr_define_err	30
 isr_define		31
 
+isr_define_pic	32
+isr_define_pic	33
+isr_define_pic	34
+isr_define_pic	35
+isr_define_pic	36
+isr_define_pic	37
+isr_define_pic	38
+isr_define_pic	39
+
+isr_define_pic	40
+isr_define_pic	41
+isr_define_pic	42
+isr_define_pic	43
+isr_define_pic	44
+isr_define_pic	45
+isr_define_pic	46
+isr_define_pic	47
+
 global isr_stub_table
 isr_stub_table:
 %assign i 0
-%rep    32
+%rep    32+16
     dd isr_stub_%+i
 	%assign i i+1
 %endrep

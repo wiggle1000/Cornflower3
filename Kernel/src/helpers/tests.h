@@ -1,5 +1,6 @@
 #pragma once
 #include "helpers/vgaPrint.h"
+#include "hardware/port_io.h"
 
 void TEST_PRINTING(void)
 {
@@ -47,3 +48,7 @@ void TEST_PRINTING(void)
 	VGAPrint::WriteInt32(9999, 		false); VGAPrint::Write(" ");
 	VGAPrint::WriteInt32(10000, 		false); VGAPrint::Write("\n");
 } 
+
+void TEST_PORTS(void)
+{
+}

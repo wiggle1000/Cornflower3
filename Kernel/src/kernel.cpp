@@ -2,6 +2,7 @@
 #include "tests.h"
 #include "gdt.h"
 #include "idt.h"
+#include "helpers/PIC.h"
 
 extern "C" void main(void) 
 {
@@ -13,13 +14,18 @@ extern "C" void main(void)
 	
 	//TEST_PRINTING();
 	
-	VGAPrint::Write("Setting up GDT.\n");
 	gdt_init();
-	VGAPrint::Write("Setting up IDT.\n");
-	//idt_init();
+	PIC_init();
+	idt_init();
+	
+	VGAPrint::SetColors(VGAPrint::VGA_COLOR_LIGHT_CYAN, VGAPrint::VGA_COLOR_BLACK);
+	VGAPrint::Write("Uh...\n");
 
+	int i = 0;
 	while (true)
 	{
+		VGAPrint::Write(".");
+		io_wait();
 		/* code */
 	}
 	

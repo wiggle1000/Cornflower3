@@ -1,7 +1,10 @@
 #pragma once
 #include <cstdint>
+#include "helpers/vgaPrint.h"
+#include "hardware/PIC.h"
+#include "hardware/port_io.h"
 
-#define IDT_MAX_DESCRIPTORS 32
+#define IDT_MAX_DESCRIPTORS 128
 
 //Represents an IDT Table entry.
 typedef struct
@@ -21,9 +24,14 @@ typedef struct {
 	uint32_t	base;
 } __attribute__((packed)) idtr_t;
 
+extern const char* INTERRUPT_NAMES[];
+
 extern void* isr_stub_table[];
 
-extern "C" __attribute__((noreturn)) void exception_handler(void);
+extern uint8_t lastInterrupt;
+
+extern "C" __attribute__((noreturn)) void exception_handler(int8_t vector, int32_t address);
+extern "C" void PIC_interrupt_handler(int8_t vector, int32_t address);
 
 void idt_set_descriptor(uint8_t vector, void* isr, uint8_t flags);
 void idt_init(void);

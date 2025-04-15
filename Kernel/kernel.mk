@@ -5,18 +5,19 @@ SRC_DIR?=src/kernel
 
 ASM?=nasm
 GCC?=i386-elf-gcc
-GPPPARAMS?=-ffreestanding -O2 -nostdlib -I$(SRC_DIR) -Wall -Wextra
+GPPPARAMS?=-ffreestanding -O2 -nostdlib -I$(SRC_DIR) -Wall -Wextra -g
 ASMPARAMS?=-f elf
-LDPARAMS?=-ffreestanding -O2 -nostdlib -I$(SRC_DIR)
+LDPARAMS?=-ffreestanding -O2 -nostdlib -I$(SRC_DIR) -g
 
 objects = 	$(OBJ_DIR)/bootheader.o \
 			$(OBJ_DIR)/entry.o \
 			$(OBJ_DIR)/kernel.o \
-			$(OBJ_DIR)/gdt.o \
-			$(OBJ_DIR)/gdt_helper.o \
-			$(OBJ_DIR)/idt.o \
-			$(OBJ_DIR)/isr_stubs.o \
-			$(OBJ_DIR)/helpers/vgaPrint.o
+			$(OBJ_DIR)/hardware/gdt/gdt.o \
+			$(OBJ_DIR)/hardware/gdt/gdt_helper.o \
+			$(OBJ_DIR)/hardware/idt/idt.o \
+			$(OBJ_DIR)/hardware/idt/isr_stubs.o \
+			$(OBJ_DIR)/helpers/vgaPrint.o \
+			$(OBJ_DIR)/hardware/helpers/PIC.o
 
 .PHONY: all kernel clean
 
